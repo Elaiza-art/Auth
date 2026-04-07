@@ -58,7 +58,7 @@ public class MainServlet extends HttpServlet {
         String encodedParentPath = encodePathForUrl(currentDir.getParent());
 
         req.setAttribute("timeCurrent", timeCurrent);
-        req.setAttribute("currentPath", currentDir.getAbsolutePath()); //??? почему именно абсолют
+        req.setAttribute("currentPath", currentDir.getAbsolutePath());
         req.setAttribute("items", items);
         req.setAttribute("canGoUp", canGoUp);
         req.setAttribute("encodedParentPath", encodedParentPath);
@@ -84,7 +84,6 @@ public class MainServlet extends HttpServlet {
         }
 
         String mimeType = Files.probeContentType(file.toPath());
-        resp.setContentType(mimeType != null ? mimeType : "application/octet-stream");
         resp.setHeader("Content-Disposition", "attachment; filename=\"" +
                 URLEncoder.encode(file.getName(), StandardCharsets.UTF_8.toString()) + "\"");
         resp.setContentLengthLong(file.length());

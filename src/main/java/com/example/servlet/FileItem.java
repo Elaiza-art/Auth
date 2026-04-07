@@ -19,19 +19,14 @@ public class FileItem {
     }
 
     public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
 
     public String getPath() { return path; }
-    public void setPath(String path) { this.path = path; }
 
     public String getEncodedPath() { return encodedPath; }
-    public void setEncodedPath(String encodedPath) { this.encodedPath = encodedPath; }
 
     public boolean isDirectory() { return directory; }
-    public void setDirectory(boolean directory) { this.directory = directory; }
 
-    public long getSize() { return size; }  // 🆕 Геттер
-    public void setSize(long size) { this.size = size; }
+    public long getSize() { return size; }
 
 
     public String getSizeFormatted() {
