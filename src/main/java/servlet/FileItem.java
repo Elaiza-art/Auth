@@ -1,4 +1,4 @@
-package com.example.servlet;
+package servlet;
 
 public class FileItem {
 

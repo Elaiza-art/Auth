@@ -36,7 +36,7 @@
     </dependencies>
 
     <build>
-        <finalName>servlet</finalName>
+        <finalName>filemanager</finalName>
     </build>
 
 </project>

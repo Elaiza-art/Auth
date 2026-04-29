@@ -1,10 +1,12 @@
-package com.example.servlet;
+package servlet;
 
+import accounts.UserProfile;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpSession;
 
 import java.io.File;
 import java.io.IOException;
@@ -20,63 +22,88 @@ import java.util.List;
 @WebServlet("/directories")
 public class MainServlet extends HttpServlet {
 
-    private static final String BASE_DIR = "C:\\Users\\User\\Desktop\\Универ";
+    private static final String ROOT_DIR = "E:\\Students\\filemanager\\";
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
 
-        String pathParam = req.getParameter("path");
-        String downloadParam = req.getParameter("download");
-
-
-        if (downloadParam != null && !downloadParam.isEmpty()) {
-            handleDownload(downloadParam, resp);
+        // Проверка авторизации
+        HttpSession session = req.getSession(false);
+        if (session == null || session.getAttribute("user") == null) {
+            resp.sendRedirect(req.getContextPath() + "/auth");
             return;
         }
 
-        File currentDir;
+        UserProfile currentUser = (UserProfile) session.getAttribute("user");
+        String userHomePath = ROOT_DIR + currentUser.getLogin();
+        File userHome = new File(userHomePath);
+        if (!userHome.exists()) userHome.mkdirs();
 
-        if(pathParam == null || pathParam.isEmpty()){
-            currentDir = new File(BASE_DIR);
+        String pathParam = req.getParameter("path");
+        String downloadParam = req.getParameter("download");
+
+        File currentDir;
+        if (pathParam == null || pathParam.isEmpty()) {
+            currentDir = userHome;
         } else {
-            try {
-                String decoded = java.net.URLDecoder.decode(pathParam, StandardCharsets.UTF_8.toString());
-                currentDir = new File(decoded);
-            } catch (Exception e) {
-                currentDir = new File(pathParam);
-            }
-            if (!currentDir.isDirectory()) {
-                currentDir = new File(BASE_DIR);
-            }
+            String decoded = URLDecoder.decode(pathParam, StandardCharsets.UTF_8.toString());
+            currentDir = new File(decoded);
         }
 
-        String timeCurrent = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss"));
+        // Защита от выхода за пределы домашней папки
+        String canonicalDir;
+        try {
+            canonicalDir = currentDir.getCanonicalPath();
+        } catch (IOException e) {
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Некорректный путь");
+            return;
+        }
 
+        if (!canonicalDir.startsWith(userHome.getCanonicalPath())) {
+            resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Доступ за пределы вашей папки запрещён");
+            return;
+        }
+
+        if (downloadParam != null && !downloadParam.isEmpty()) {
+            handleDownload(downloadParam, resp, userHome.getCanonicalPath());
+            return;
+        }
+
+        if (!currentDir.isDirectory()) {
+            currentDir = userHome;
+        }
+
+
+        String timeCurrent = LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss"));
         List<FileItem> items = listItems(currentDir);
-        boolean canGoUp = !currentDir.getAbsolutePath().equals(BASE_DIR);
-        String encodedParentPath = encodePathForUrl(currentDir.getParent());
+        boolean canGoUp = !currentDir.getAbsolutePath().equals(userHome.getAbsolutePath());
+        String encodedParentPath = canGoUp ? encodePathForUrl(currentDir.getParent()) : "";
 
         req.setAttribute("timeCurrent", timeCurrent);
         req.setAttribute("currentPath", currentDir.getAbsolutePath());
         req.setAttribute("items", items);
         req.setAttribute("canGoUp", canGoUp);
         req.setAttribute("encodedParentPath", encodedParentPath);
+        req.setAttribute("currentUser", currentUser);
 
         req.getRequestDispatcher("mypage.jsp").forward(req, resp);
     }
 
-    private void handleDownload(String encodedPath, HttpServletResponse resp) throws IOException {
+    private void handleDownload(String encodedPath, HttpServletResponse resp, String userHomeCanonical) throws IOException {
+        String decodedPath = URLDecoder.decode(encodedPath, StandardCharsets.UTF_8.toString());
+        File file = new File(decodedPath);
 
-        String decodedPath;
         try {
-            decodedPath = URLDecoder.decode(encodedPath, StandardCharsets.UTF_8.toString());
-        } catch (Exception e) {
-            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Неверный формат пути");
+            String canonicalFile = file.getCanonicalPath();
+            if (!canonicalFile.startsWith(userHomeCanonical)) {
+                resp.sendError(HttpServletResponse.SC_FORBIDDEN, "Доступ запрещён");
+                return;
+            }
+        } catch (IOException e) {
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "Некорректный путь");
             return;
         }
-
-        File file = new File(decodedPath);
 
         if (!file.isFile() || !file.canRead()) {
             resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Файл не найден или недоступен");
@@ -97,7 +124,6 @@ public class MainServlet extends HttpServlet {
     private List<FileItem> listItems(File dir){
         List<FileItem> result = new ArrayList<>();
         File[] files = dir.listFiles();
-
         if(files != null){
             for(File file : files){
                 String encodedPath = encodePathForUrl(file.getAbsolutePath());
