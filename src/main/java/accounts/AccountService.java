@@ -1,16 +1,14 @@
 package accounts;
 
-import dbService.DBException;
-import dbService.DBService;
+import dbService.HibernateService;
 import dbService.dataSets.UsersDataSet;
 
 public class AccountService {
-
     private static final AccountService INSTANCE = new AccountService();
-    private final DBService dbService;
+    private final HibernateService hibernateService;
 
     private AccountService() {
-        this.dbService = DBService.getInstance();
+        this.hibernateService = HibernateService.getInstance();
     }
 
     public static AccountService getInstance() {
@@ -22,35 +20,26 @@ public class AccountService {
                 login.isEmpty() || password.isEmpty() || email.isEmpty()) {
             return false;
         }
-
         try {
-            dbService.addUser(login, password, email);
+            hibernateService.addUser(login, password, email);
             return true;
-        } catch (DBException e) {
-            System.err.println("Ошибка регистрации: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("️Ошибка регистрации: " + e.getMessage());
             return false;
         }
     }
 
     public UserProfile authenticate(String login, String password) {
-        if (login == null || password == null || login.isEmpty()) {
-            return null;
-        }
+        if (login == null || password == null || login.isEmpty()) return null;
 
         try {
-            UsersDataSet dataSet = dbService.getUserByLogin(login);
-
+            UsersDataSet dataSet = hibernateService.getUserByLogin(login);
             if (dataSet != null && dataSet.getPassword().equals(password)) {
-                return new UserProfile(
-                        dataSet.getLogin(),
-                        dataSet.getPassword(),
-                        dataSet.getEmail()
-                );
+                return new UserProfile(dataSet.getLogin(), dataSet.getPassword(), dataSet.getEmail());
             }
-        } catch (DBException e) {
+        } catch (Exception e) {
             System.err.println("Ошибка аутентификации: " + e.getMessage());
         }
-
         return null;
     }
 }
