@@ -1,4 +1,4 @@
-package servlet; // Укажи свой пакет сервлетов
+package servlet;
 
 import accounts.AccountService;
 import accounts.UserProfile;
